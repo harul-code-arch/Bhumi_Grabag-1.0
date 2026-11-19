@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" class="h-full bg-slate-100">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BHUMI Grabag 2.0 - Draf Persil & Digitasi</title>
+    <title>BHUMI Grabag 2.0 - Information System</title>
 
-    <!-- CSS Leaflet & Leaflet-Geoman -->
+    <!-- CSS Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -14,192 +15,288 @@
       rel="stylesheet"
       href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css"
     />
-
-    <style>
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: sans-serif;
-      }
-      #map {
-        width: 100vw;
-        height: 100vh;
-      }
-
-      /* Panel Kontrol Atas (Pencarian & File) */
-      .control-panel {
-        position: absolute;
-        top: 15px;
-        left: 50px;
-        z-index: 1000;
-        background: white;
-        padding: 12px 16px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        display: flex;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .control-panel input[type="file"] {
-        display: none;
-      }
-
-      .btn-upload {
-        background: #007bff;
-        color: white;
-        padding: 6px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: bold;
-      }
-
-      .btn-upload:hover {
-        background: #0056b3;
-      }
-
-      /* Panel Disclaimer Bawah */
-      .disclaimer-panel {
-        position: absolute;
-        bottom: 15px;
-        left: 15px;
-        right: 15px;
-        z-index: 1000;
-        background: rgba(255, 255, 255, 0.95);
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 11px;
-        color: #555;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-        max-width: 600px;
-      }
-    </style>
+    <link rel="stylesheet" href="css/style.css" />
   </head>
-  <body>
-    <!-- Panel Kontrol Berkas -->
-    <div class="control-panel">
-      <strong>BHUMI Grabag 2.0</strong>
-      <label for="fileInput" class="btn-upload">📂 Muat GeoJSON/KML</label>
-      <input type="file" id="fileInput" accept=".geojson, .json, .kml" />
+  <body
+    class="h-full flex flex-col font-sans text-slate-800 antialiased overflow-x-hidden"
+  >
+    <!-- Navbar Top Header -->
+    <header
+      class="bg-slate-900 text-white shadow-md sticky top-0 z-50 h-16 flex items-center justify-between px-4 sm:px-6"
+    >
+      <div class="flex items-center space-x-3">
+        <div class="bg-emerald-600 p-2 rounded-lg text-white">
+          <i data-lucide="layers" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1
+            class="font-bold text-base sm:text-lg leading-tight flex items-center gap-2"
+          >
+            BHUMI Grabag 2.0
+            <span
+              class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700"
+              >Akademik</span
+            >
+          </h1>
+          <p class="text-[11px] text-slate-400">
+            WebGIS Informasi Persil & Penggunaan Lahan
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <div
+          id="roleBadge"
+          class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-emerald-400 border border-slate-700"
+        >
+          <span
+            class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"
+          ></span>
+          <span id="roleText">Role: Guest</span>
+        </div>
+
+        <button
+          id="authBtn"
+          onclick="openLoginModal()"
+          class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-3.5 py-2 rounded-lg transition shadow-sm"
+        >
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          <span id="authBtnText">Masuk (Login Demo)</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 relative flex flex-col">
+      <!-- VIEW 1: GUEST MODE (Responsif Desktop & Mobile) -->
+      <div
+        id="publicView"
+        class="relative w-full flex-1 flex flex-col lg:flex-row"
+      >
+        <!-- Map Container -->
+        <div id="publicMap" class="w-full map-fullscreen z-10 flex-1"></div>
+
+        <!-- Panel Kontrol: Sidebar di Desktop / Bottom Sheet di Mobile -->
+        <div
+          class="z-[400] bg-white/95 backdrop-blur-md p-4 shadow-xl border-t lg:border-l border-slate-200 w-full lg:w-80 lg:h-full space-y-4"
+        >
+          <div
+            class="font-bold text-slate-800 border-b border-slate-100 pb-2 flex justify-between items-center"
+          >
+            <span class="flex items-center gap-1.5"
+              ><i data-lucide="sliders" class="w-4 h-4 text-indigo-600"></i>
+              Layer Penggunaan Lahan</span
+            >
+            <span
+              class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded"
+              >Guest Mode</span
+            >
+          </div>
+
+          <!-- Basemap Switcher -->
+          <div class="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-lg">
+            <button
+              onclick="switchBasemap('osm')"
+              id="btnOsm"
+              class="py-1 px-3 rounded-md font-semibold text-slate-800 bg-white shadow-sm transition text-center text-xs"
+            >
+              OpenStreetMap
+            </button>
+            <button
+              onclick="switchBasemap('sat')"
+              id="btnSat"
+              class="py-1 px-3 rounded-md font-medium text-slate-600 transition text-center text-xs"
+            >
+              Satelit Esri
+            </button>
+          </div>
+
+          <!-- Legenda Penggunaan Lahan Eksisting -->
+          <div class="border-t border-slate-100 pt-2 text-xs space-y-2">
+            <div class="font-semibold text-slate-700">
+              Legenda Penggunaan Lahan:
+            </div>
+            <div class="space-y-1.5 text-slate-600">
+              <div class="flex items-center gap-2">
+                <span class="w-3.5 h-3.5 rounded bg-emerald-500"></span> Sawah
+                Irigasi
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-3.5 h-3.5 rounded bg-amber-500"></span>
+                Permukiman
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-3.5 h-3.5 rounded bg-blue-500"></span>
+                Perdagangan & Jasa
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="bg-amber-50 border border-amber-200 text-amber-900 p-2.5 rounded-lg text-[10px] leading-relaxed"
+          >
+            <strong>Disclaimer ATR/BPN:</strong> Peta visual ini disajikan
+            khusus untuk kepeeluan studi/informasi umum dan bukan merupakan
+            bukti legalitas kepemilikan hak atas tanah.
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: DASHBOARD INTERNAL (Super User / Admin) -->
+      <div id="internalView" class="hidden flex-1 flex flex-col bg-slate-50">
+        <div
+          class="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between"
+        >
+          <nav class="flex space-x-2 text-xs font-semibold">
+            <button
+              onclick="switchTab('mapTab')"
+              id="tabBtn-mapTab"
+              class="tab-btn px-3 py-2 rounded-lg bg-indigo-600 text-white flex items-center gap-1.5"
+            >
+              <i data-lucide="map-pin" class="w-4 h-4"></i> Peta Persil &
+              Digitasi
+            </button>
+            <button
+              onclick="switchTab('searchTab')"
+              id="tabBtn-searchTab"
+              class="tab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"
+            >
+              <i data-lucide="search" class="w-4 h-4"></i> Filter Persil
+            </button>
+          </nav>
+        </div>
+
+        <div class="flex-1 relative">
+          <div
+            id="tabContent-mapTab"
+            class="tab-content absolute inset-0 flex flex-col lg:flex-row"
+          >
+            <div id="internalMap" class="flex-1 h-full z-10"></div>
+            <div
+              class="w-full lg:w-80 bg-white border-l border-slate-200 p-4 space-y-4"
+            >
+              <h3 class="font-bold text-xs text-slate-800 uppercase">
+                Inspektor Draf Persil
+              </h3>
+              <div
+                id="spatialMeasureResult"
+                class="bg-indigo-50 border border-indigo-100 p-3 rounded-xl text-xs text-indigo-900"
+              >
+                Gunakan alat digitasi Geoman di peta untuk membuat polygon draf.
+              </div>
+              <div
+                id="inspectorDetail"
+                class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-500 italic"
+              >
+                Klik poligon di peta untuk inspeksi atribut persil.
+              </div>
+            </div>
+          </div>
+
+          <div
+            id="tabContent-searchTab"
+            class="tab-content hidden p-6 max-w-5xl mx-auto space-y-4"
+          >
+            <div
+              class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex gap-4"
+            >
+              <select
+                id="searchDesa"
+                onchange="filterPersilTable()"
+                class="text-xs p-2 rounded-lg border"
+              >
+                <option value="ALL">Semua Desa</option>
+                <option value="Grabag">Grabag</option>
+                <option value="Kleteran">Kleteran</option>
+              </select>
+              <select
+                id="searchPL"
+                onchange="filterPersilTable()"
+                class="text-xs p-2 rounded-lg border"
+              >
+                <option value="ALL">Semua Penggunaan Lahan</option>
+                <option value="Sawah Irigasi">Sawah Irigasi</option>
+                <option value="Permukiman">Permukiman</option>
+              </select>
+            </div>
+            <div class="bg-white border rounded-xl overflow-hidden">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-100 font-bold border-b">
+                  <tr>
+                    <th class="p-3">ID Persil</th>
+                    <th class="p-3">Desa</th>
+                    <th class="p-3">Penggunaan Lahan</th>
+                    <th class="p-3 text-right">Luas (m²)</th>
+                    <th class="p-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyPersil" class="divide-y text-slate-700"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modal Login -->
+    <div
+      id="loginModal"
+      class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl border max-w-sm w-full overflow-hidden p-6 space-y-4"
+      >
+        <h3 class="font-bold text-sm text-slate-900">
+          Login Demo Internal BHUMI Grabag
+        </h3>
+        <div
+          id="loginError"
+          class="hidden bg-red-50 text-red-600 p-2 rounded text-xs font-semibold"
+        >
+          Username/Password salah!
+        </div>
+        <form onsubmit="handleLogin(event)" class="space-y-3">
+          <input
+            type="text"
+            id="username"
+            placeholder="Username (superuser/admin)"
+            required
+            class="w-full text-xs p-2.5 rounded-lg border"
+          />
+          <input
+            type="password"
+            id="password"
+            placeholder="Password (123)"
+            required
+            class="w-full text-xs p-2.5 rounded-lg border"
+          />
+          <div class="flex gap-2 pt-2">
+            <button
+              type="button"
+              onclick="closeLoginModal()"
+              class="w-1/2 py-2 text-xs font-semibold text-slate-500"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              class="w-1/2 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-lg"
+            >
+              Masuk
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
-    <!-- Container Peta -->
-    <div id="map"></div>
-
-    <!-- Disclaimer ATR/BPN -->
-    <div class="disclaimer-panel">
-      <strong>Disclaimer:</strong> Peta persil visual ini disajikan untuk
-      keperluan informasi internal/studi Kecamatan Grabag dan bukan merupakan
-      bukti legalitas kepemilikan tanah atau penetapan status hukum dari
-      ATR/BPN.
-    </div>
-
-    <!-- JS Libraries: Leaflet, Geoman, JSZip, togeojson, Turf.js -->
+    <!-- JS Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
-    <script src="https://unpkg.com/@tmcw/togeojson"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-    <script>
-      // 1. Inisialisasi Peta Grabag
-      const map = L.map("map").setView([-7.3711, 110.3306], 13);
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap",
-      }).addTo(map);
-
-      // 2. Pasang Fitur Digitasi Leaflet-Geoman
-      map.pm.addControls({
-        position: "topleft",
-        drawPolygon: true,
-        drawMarker: true,
-        editMode: true,
-        dragMode: true,
-        removalMode: true,
-      });
-
-      // Event saat membuat polygon draf baru
-      map.on("pm:create", (e) => {
-        const layer = e.layer;
-        const geojson = layer.toGeoJSON();
-
-        // Hitung estimasi luas menggunakan Turf.js di browser
-        const areaSquareMeters = turf.area(geojson);
-        const areaHectares = (areaSquareMeters / 10000).toFixed(2);
-
-        layer
-          .bindPopup(
-            `
-                <b>Draf Persil Baru</b><br>
-                Luas Estimasi: ${areaSquareMeters.toFixed(1)} m² (${areaHectares} Ha)<br>
-                <small>*Validasi resmi dihitung ulang di server</small>
-            `,
-          )
-          .openPopup();
-      });
-
-      // 3. Fitur Unggah File GeoJSON / KML Lokal
-      document
-        .getElementById("fileInput")
-        .addEventListener("change", function (e) {
-          const file = e.target.files[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          const fileName = file.name.toLowerCase();
-
-          reader.onload = function (event) {
-            try {
-              let geojsonData;
-
-              if (fileName.endsWith(".kml")) {
-                // Ubah KML menjadi GeoJSON menggunakan togeojson
-                const parser = new DOMParser();
-                const kmlDoc = parser.parseFromString(
-                  event.target.result,
-                  "text/xml",
-                );
-                geojsonData = toGeoJSON.kml(kmlDoc);
-              } else {
-                // Membaca file GeoJSON / JSON
-                geojsonData = JSON.parse(event.target.result);
-              }
-
-              // Tampilkan ke Peta
-              const vectorLayer = L.geoJSON(geojsonData, {
-                onEachFeature: function (feature, layer) {
-                  let popupContent = "<b>Data Persil Import</b><br>";
-                  if (feature.properties) {
-                    for (let key in feature.properties) {
-                      popupContent += `<b>${key}:</b> ${feature.properties[key]}<br>`;
-                    }
-                  }
-                  layer.bindPopup(popupContent);
-                },
-              }).addTo(map);
-
-              // Pindahkan tampilan peta ke lokasi data yang baru diunggah
-              map.fitBounds(vectorLayer.getBounds());
-              alert("Berhasil memuat berkas " + file.name);
-            } catch (err) {
-              alert(
-                "Gagal membaca file! Pastikan format file GeoJSON/KML valid.",
-              );
-              console.error(err);
-            }
-          };
-
-          if (fileName.endsWith(".kml")) {
-            reader.readAsText(file);
-          } else {
-            reader.readAsText(file);
-          }
-        });
-    </script>
+    <script src="js/map.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
   </body>
 </html>
