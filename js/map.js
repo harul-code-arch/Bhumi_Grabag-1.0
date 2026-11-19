@@ -1,169 +1,162 @@
-// Map State & Instances
 let publicMap = null;
 let internalMap = null;
-let publicLayers = {};
-let mapLayers = {};
+let drawnItems = null;
 
-// Sample Data Persil Penggunaan Lahan Grabag
-const persilPenggunaanLahan = [
-  {
-    id: "PRS-GRB-001",
-    desa: "Grabag",
-    pl: "Perdagangan & Jasa",
-    luas: 450,
-    coords: [
-      [-7.371, 110.33],
-      [-7.371, 110.333],
-      [-7.373, 110.333],
-      [-7.373, 110.33],
-    ],
-    status: "Terbit",
-  },
-  {
-    id: "PRS-GRB-002",
-    desa: "Grabag",
-    pl: "Permukiman",
-    luas: 1200,
-    coords: [
-      [-7.368, 110.332],
-      [-7.368, 110.336],
-      [-7.37, 110.336],
-      [-7.37, 110.332],
-    ],
-    status: "Terbit",
-  },
-  {
-    id: "PRS-KLT-003",
-    desa: "Kleteran",
-    pl: "Sawah Irigasi",
-    luas: 3400,
-    coords: [
-      [-7.36, 110.345],
-      [-7.36, 110.35],
-      [-7.365, 110.35],
-      [-7.365, 110.345],
-    ],
-    status: "Draf SuperUser",
-  },
-  {
-    id: "PRS-BNR-004",
-    desa: "Banaran",
-    pl: "Sawah Irigasi",
-    luas: 2100,
-    coords: [
-      [-7.382, 110.325],
-      [-7.382, 110.33],
-      [-7.385, 110.33],
-      [-7.385, 110.325],
-    ],
-    status: "Terbit",
-  },
-];
+const osmUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const osmAttrib = "&copy; OpenStreetMap contributors";
 
-// Inisialisasi Peta Publik (Guest)
+const esriSatUrl =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const esriSatAttrib =
+  "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community";
+
+let publicOsmLayer, publicSatLayer;
+let internalOsmLayer, internalSatLayer;
+
 function initPublicMap() {
   if (publicMap) return;
-  publicMap = L.map("publicMap", { zoomControl: true }).setView(
-    [-7.3711, 110.3306],
-    13,
-  );
 
-  publicLayers.osm = L.tileLayer(
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    { attribution: "&copy; OpenStreetMap" },
-  ).addTo(publicMap);
-  publicLayers.sat = L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    { attribution: "&copy; Esri" },
-  );
+  publicOsmLayer = L.tileLayer(osmUrl, { maxZoom: 19, attribution: osmAttrib });
+  publicSatLayer = L.tileLayer(esriSatUrl, {
+    maxZoom: 18,
+    attribution: esriSatAttrib,
+  });
 
-  publicLayers.plGroup = L.layerGroup().addTo(publicMap);
+  publicMap = L.map("publicMap", {
+    center: [-7.375, 110.332],
+    zoom: 14,
+    layers: [publicOsmLayer],
+  });
 
-  persilPenggunaanLahan.forEach((p) => {
-    const color =
-      p.pl === "Sawah Irigasi"
-        ? "#10b981"
-        : p.pl === "Permukiman"
-          ? "#f59e0b"
-          : "#3b82f6";
-    L.polygon(p.coords, { color: color, weight: 1.5, fillOpacity: 0.4 })
-      .bindPopup(
-        `<b>Desa ${p.desa}</b><br>Penggunaan Lahan: <b>${p.pl}</b><br><small>*Visual Non-Kadastral</small>`,
-      )
-      .addTo(publicLayers.plGroup);
+  L.control.scale({ imperial: false }).addTo(publicMap);
+}
+
+function initInternalMap() {
+  if (internalMap) return;
+
+  internalOsmLayer = L.tileLayer(osmUrl, {
+    maxZoom: 19,
+    attribution: osmAttrib,
+  });
+  internalSatLayer = L.tileLayer(esriSatUrl, {
+    maxZoom: 18,
+    attribution: esriSatAttrib,
+  });
+
+  internalMap = L.map("internalMap", {
+    center: [-7.375, 110.332],
+    zoom: 14,
+    layers: [internalOsmLayer],
+  });
+
+  L.control.scale({ imperial: false }).addTo(internalMap);
+
+  drawnItems = new L.FeatureGroup();
+  internalMap.addLayer(drawnItems);
+
+  internalMap.pm.addControls({
+    position: "topleft",
+    drawMarker: true,
+    drawPolyline: true,
+    drawPolygon: true,
+    drawRectangle: true,
+    drawCircle: false,
+    editMode: true,
+    dragMode: true,
+    removalMode: true,
+  });
+
+  internalMap.on("pm:create", function (e) {
+    const layer = e.layer;
+    drawnItems.addLayer(layer);
+
+    if (e.shape === "Polygon" || e.shape === "Rectangle") {
+      const geojson = layer.toGeoJSON();
+      const areaM2 = turf.area(geojson);
+      const areaHa = (areaM2 / 10000).toFixed(2);
+
+      const resultEl = document.getElementById("spatialMeasureResult");
+      if (resultEl) {
+        resultEl.innerHTML = `
+                    <div class="font-bold text-slate-800">Polygon Draf Baru Terbuat:</div>
+                    <div class="text-indigo-700 font-semibold mt-1">Luas: ${areaM2.toFixed(1)} m² (${areaHa} Ha)</div>
+                    <div class="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
+                        <span>✓ Terdaftar di draf digitasi lokal</span>
+                    </div>
+                `;
+      }
+    }
   });
 }
 
-// Inisialisasi Peta Internal & Leaflet-Geoman (Super User)
-function initInternalMap() {
-  if (internalMap) return;
-  setTimeout(() => {
-    internalMap = L.map("internalMap", { zoomControl: true }).setView(
-      [-7.3711, 110.3306],
-      13,
-    );
+function switchBasemap(type) {
+  if (!publicMap) return;
+  const btnOsm = document.getElementById("btnOsm");
+  const btnSat = document.getElementById("btnSat");
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap",
-    }).addTo(internalMap);
-
-    // Kontrol Digitasi Geoman
-    internalMap.pm.addControls({
-      position: "topleft",
-      drawPolygon: true,
-      editMode: true,
-      dragMode: true,
-      removalMode: true,
-    });
-
-    // Pengukuran Spasial dengan Turf.js
-    internalMap.on("pm:create", (e) => {
-      const geojson = e.layer.toGeoJSON();
-      const areaSquareMeters = turf.area(geojson);
-      const areaHectares = (areaSquareMeters / 10000).toFixed(2);
-
-      document.getElementById("spatialMeasureResult").innerHTML = `
-                <b>Polygon Draf Baru Terbuat:</b><br>
-                Luas: <b>${areaSquareMeters.toFixed(1)} m²</b> (${areaHectares} Ha)<br>
-                <span class="text-[10px] text-emerald-700 font-semibold">*Tersimpan sebagai draf lokal</span>
-            `;
-    });
-
-    persilPenggunaanLahan.forEach((p) => {
-      const poly = L.polygon(p.coords, {
-        color: "#6366f1",
-        weight: 2,
-        fillOpacity: 0.3,
-      }).addTo(internalMap);
-      poly.on("click", () => {
-        document.getElementById("inspectorDetail").innerHTML = `
-                    <div class="space-y-1">
-                        <div class="font-bold text-indigo-700">${p.id}</div>
-                        <div>Desa: <b>${p.desa}</b></div>
-                        <div>Penggunaan Lahan: <b>${p.pl}</b></div>
-                        <div>Luas Draf: <b>${p.luas} m²</b></div>
-                        <div>Status: <span class="bg-indigo-100 text-indigo-800 px-1 rounded font-bold">${p.status}</span></div>
-                    </div>
-                `;
-      });
-    });
-  }, 100);
+  if (type === "osm") {
+    publicMap.removeLayer(publicSatLayer);
+    publicMap.addLayer(publicOsmLayer);
+    if (btnOsm && btnSat) {
+      btnOsm.className =
+        "py-1 px-3 rounded-md font-semibold text-slate-800 bg-white shadow-sm transition text-center text-xs";
+      btnSat.className =
+        "py-1 px-3 rounded-md font-medium text-slate-600 transition text-center text-xs";
+    }
+  } else if (type === "sat") {
+    publicMap.removeLayer(publicOsmLayer);
+    publicMap.addLayer(publicSatLayer);
+    if (btnOsm && btnSat) {
+      btnSat.className =
+        "py-1 px-3 rounded-md font-semibold text-slate-800 bg-white shadow-sm transition text-center text-xs";
+      btnOsm.className =
+        "py-1 px-3 rounded-md font-medium text-slate-600 transition text-center text-xs";
+    }
+  }
 }
 
-function switchBasemap(type) {
+function switchInternalBasemap(type) {
+  if (!internalMap) return;
+  const btnOsm = document.getElementById("btnInternalOsm");
+  const btnSat = document.getElementById("btnInternalSat");
+
   if (type === "osm") {
-    publicMap.removeLayer(publicLayers.sat);
-    publicMap.addLayer(publicLayers.osm);
-    document.getElementById("btnOsm").className =
-      "py-1 px-3 rounded-md font-semibold text-slate-800 bg-white shadow-sm transition text-center text-xs";
-    document.getElementById("btnSat").className =
-      "py-1 px-3 rounded-md font-medium text-slate-600 transition text-center text-xs";
-  } else {
-    publicMap.removeLayer(publicLayers.osm);
-    publicMap.addLayer(publicLayers.sat);
-    document.getElementById("btnSat").className =
-      "py-1 px-3 rounded-md font-semibold text-slate-800 bg-white shadow-sm transition text-center text-xs";
-    document.getElementById("btnOsm").className =
-      "py-1 px-3 rounded-md font-medium text-slate-600 transition text-center text-xs";
+    internalMap.removeLayer(internalSatLayer);
+    internalMap.addLayer(internalOsmLayer);
+    if (btnOsm && btnSat) {
+      btnOsm.className =
+        "py-1 px-3 rounded-md font-semibold text-slate-800 bg-white shadow-sm transition text-center text-xs";
+      btnSat.className =
+        "py-1 px-3 rounded-md font-medium text-slate-600 transition text-center text-xs";
+    }
+  } else if (type === "sat") {
+    internalMap.removeLayer(internalOsmLayer);
+    internalMap.addLayer(internalSatLayer);
+    if (btnOsm && btnSat) {
+      btnSat.className =
+        "py-1 px-3 rounded-md font-semibold text-slate-800 bg-white shadow-sm transition text-center text-xs";
+      btnOsm.className =
+        "py-1 px-3 rounded-md font-medium text-slate-600 transition text-center text-xs";
+    }
   }
+}
+
+function exportDrawnPolygons() {
+  if (!drawnItems || drawnItems.getLayers().length === 0) {
+    alert("Belum ada bidang/poligon hasil digitasi di peta!");
+    return;
+  }
+
+  const data = drawnItems.toGeoJSON();
+  const jsonStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `digitasi_bhumi_grabag_${Date.now()}.geojson`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

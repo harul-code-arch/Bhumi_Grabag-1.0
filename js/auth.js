@@ -1,4 +1,4 @@
-let currentUser = null; // null (Guest), 'Super User', 'Admin'
+let currentUser = null;
 
 function openLoginModal() {
   if (currentUser) {
