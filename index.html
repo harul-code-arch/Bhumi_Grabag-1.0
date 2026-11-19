@@ -3,35 +3,203 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BHUMI Grabag 2.0</title>
+    <title>BHUMI Grabag 2.0 - Draf Persil & Digitasi</title>
+
+    <!-- CSS Leaflet & Leaflet-Geoman -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css"
+    />
+
     <style>
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         padding: 0;
+        font-family: sans-serif;
       }
       #map {
         width: 100vw;
         height: 100vh;
       }
+
+      /* Panel Kontrol Atas (Pencarian & File) */
+      .control-panel {
+        position: absolute;
+        top: 15px;
+        left: 50px;
+        z-index: 1000;
+        background: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .control-panel input[type="file"] {
+        display: none;
+      }
+
+      .btn-upload {
+        background: #007bff;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: bold;
+      }
+
+      .btn-upload:hover {
+        background: #0056b3;
+      }
+
+      /* Panel Disclaimer Bawah */
+      .disclaimer-panel {
+        position: absolute;
+        bottom: 15px;
+        left: 15px;
+        right: 15px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        color: #555;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        max-width: 600px;
+      }
     </style>
   </head>
   <body>
+    <!-- Panel Kontrol Berkas -->
+    <div class="control-panel">
+      <strong>BHUMI Grabag 2.0</strong>
+      <label for="fileInput" class="btn-upload">📂 Muat GeoJSON/KML</label>
+      <input type="file" id="fileInput" accept=".geojson, .json, .kml" />
+    </div>
+
+    <!-- Container Peta -->
     <div id="map"></div>
 
+    <!-- Disclaimer ATR/BPN -->
+    <div class="disclaimer-panel">
+      <strong>Disclaimer:</strong> Peta persil visual ini disajikan untuk
+      keperluan informasi internal/studi Kecamatan Grabag dan bukan merupakan
+      bukti legalitas kepemilikan tanah atau penetapan status hukum dari
+      ATR/BPN.
+    </div>
+
+    <!-- JS Libraries: Leaflet, Geoman, JSZip, togeojson, Turf.js -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+    <script src="https://unpkg.com/@tmcw/togeojson"></script>
+
     <script>
-      // Inisialisasi peta berpusat di Kecamatan Grabag, Magelang
+      // 1. Inisialisasi Peta Grabag
       const map = L.map("map").setView([-7.3711, 110.3306], 13);
 
-      // OpenStreetMap Basemap
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap",
       }).addTo(map);
+
+      // 2. Pasang Fitur Digitasi Leaflet-Geoman
+      map.pm.addControls({
+        position: "topleft",
+        drawPolygon: true,
+        drawMarker: true,
+        editMode: true,
+        dragMode: true,
+        removalMode: true,
+      });
+
+      // Event saat membuat polygon draf baru
+      map.on("pm:create", (e) => {
+        const layer = e.layer;
+        const geojson = layer.toGeoJSON();
+
+        // Hitung estimasi luas menggunakan Turf.js di browser
+        const areaSquareMeters = turf.area(geojson);
+        const areaHectares = (areaSquareMeters / 10000).toFixed(2);
+
+        layer
+          .bindPopup(
+            `
+                <b>Draf Persil Baru</b><br>
+                Luas Estimasi: ${areaSquareMeters.toFixed(1)} m² (${areaHectares} Ha)<br>
+                <small>*Validasi resmi dihitung ulang di server</small>
+            `,
+          )
+          .openPopup();
+      });
+
+      // 3. Fitur Unggah File GeoJSON / KML Lokal
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", function (e) {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          const fileName = file.name.toLowerCase();
+
+          reader.onload = function (event) {
+            try {
+              let geojsonData;
+
+              if (fileName.endsWith(".kml")) {
+                // Ubah KML menjadi GeoJSON menggunakan togeojson
+                const parser = new DOMParser();
+                const kmlDoc = parser.parseFromString(
+                  event.target.result,
+                  "text/xml",
+                );
+                geojsonData = toGeoJSON.kml(kmlDoc);
+              } else {
+                // Membaca file GeoJSON / JSON
+                geojsonData = JSON.parse(event.target.result);
+              }
+
+              // Tampilkan ke Peta
+              const vectorLayer = L.geoJSON(geojsonData, {
+                onEachFeature: function (feature, layer) {
+                  let popupContent = "<b>Data Persil Import</b><br>";
+                  if (feature.properties) {
+                    for (let key in feature.properties) {
+                      popupContent += `<b>${key}:</b> ${feature.properties[key]}<br>`;
+                    }
+                  }
+                  layer.bindPopup(popupContent);
+                },
+              }).addTo(map);
+
+              // Pindahkan tampilan peta ke lokasi data yang baru diunggah
+              map.fitBounds(vectorLayer.getBounds());
+              alert("Berhasil memuat berkas " + file.name);
+            } catch (err) {
+              alert(
+                "Gagal membaca file! Pastikan format file GeoJSON/KML valid.",
+              );
+              console.error(err);
+            }
+          };
+
+          if (fileName.endsWith(".kml")) {
+            reader.readAsText(file);
+          } else {
+            reader.readAsText(file);
+          }
+        });
     </script>
   </body>
 </html>
