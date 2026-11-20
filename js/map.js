@@ -2,8 +2,9 @@ let publicMap = null;
 let internalMap = null;
 let drawnItems = null;
 
-const osmUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const osmAttrib = "&copy; OpenStreetMap contributors";
+const osmUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"; // URL kanonis OSM
+const osmAttrib =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 const esriSatUrl =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
@@ -17,8 +18,10 @@ function initPublicMap() {
   if (publicMap) return;
 
   publicOsmLayer = L.tileLayer(osmUrl, { maxZoom: 19, attribution: osmAttrib });
+
   publicSatLayer = L.tileLayer(esriSatUrl, {
-    maxZoom: 18,
+    maxZoom: 19,
+    maxNativeZoom: 18,
     attribution: esriSatAttrib,
   });
 
@@ -39,7 +42,8 @@ function initInternalMap() {
     attribution: osmAttrib,
   });
   internalSatLayer = L.tileLayer(esriSatUrl, {
-    maxZoom: 18,
+    maxZoom: 19,
+    maxNativeZoom: 18,
     attribution: esriSatAttrib,
   });
 
@@ -69,24 +73,47 @@ function initInternalMap() {
   internalMap.on("pm:create", function (e) {
     const layer = e.layer;
     drawnItems.addLayer(layer);
+    updateAreaCalculation(layer);
 
-    if (e.shape === "Polygon" || e.shape === "Rectangle") {
-      const geojson = layer.toGeoJSON();
-      const areaM2 = turf.area(geojson);
-      const areaHa = (areaM2 / 10000).toFixed(2);
+    layer.on("pm:edit", function () {
+      updateAreaCalculation(layer);
+    });
+    layer.on("pm:dragend", function () {
+      updateAreaCalculation(layer);
+    });
+  });
 
-      const resultEl = document.getElementById("spatialMeasureResult");
-      if (resultEl) {
-        resultEl.innerHTML = `
-                    <div class="font-bold text-slate-800">Polygon Draf Baru Terbuat:</div>
-                    <div class="text-indigo-700 font-semibold mt-1">Luas: ${areaM2.toFixed(1)} m² (${areaHa} Ha)</div>
-                    <div class="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
-                        <span>✓ Terdaftar di draf digitasi lokal</span>
-                    </div>
-                `;
-      }
+  // Event saat polygon dihapus
+  internalMap.on("pm:remove", function () {
+    const resultEl = document.getElementById("spatialMeasureResult");
+    if (resultEl && drawnItems.getLayers().length === 0) {
+      resultEl.innerHTML = `Pilih ikon <b>Polygon (Segi Lima)</b> di toolbar peta sebelah kiri untuk mulai digitasi persil.`;
     }
   });
+}
+
+function updateAreaCalculation(layer) {
+  if (!layer || !layer.toGeoJSON) return;
+  const geojson = layer.toGeoJSON();
+  if (
+    geojson.geometry &&
+    (geojson.geometry.type === "Polygon" ||
+      geojson.geometry.type === "Rectangle")
+  ) {
+    const areaM2 = turf.area(geojson);
+    const areaHa = (areaM2 / 10000).toFixed(2);
+
+    const resultEl = document.getElementById("spatialMeasureResult");
+    if (resultEl) {
+      resultEl.innerHTML = `
+                <div class="font-bold text-slate-800">Polygon Draf Hasil Digitasi:</div>
+                <div class="text-indigo-700 font-semibold mt-1">Estimasi Luas: ${areaM2.toFixed(1)} m² (${areaHa} Ha)</div>
+                <div class="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
+                    <span>✓ Draf aktif di canvas</span>
+                </div>
+            `;
+    }
+  }
 }
 
 function switchBasemap(type) {
@@ -157,6 +184,9 @@ function exportDrawnPolygons() {
   a.download = `digitasi_bhumi_grabag_${Date.now()}.geojson`;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
