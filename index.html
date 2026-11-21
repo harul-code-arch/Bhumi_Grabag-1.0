@@ -15,6 +15,8 @@
       href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css"
     />
     <link rel="stylesheet" href="css/style.css" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
   </head>
   <body
     class="h-full flex flex-col font-sans text-slate-800 antialiased overflow-x-hidden"
@@ -64,15 +66,15 @@
       </div>
     </header>
 
-    <main class="flex-1 relative flex flex-col">
+    <main class="flex-1 relative flex flex-col min-h-0">
       <div
         id="publicView"
-        class="relative w-full flex-1 flex flex-col lg:flex-row"
+        class="relative w-full flex-1 flex flex-col lg:flex-row h-[calc(100vh-4rem)]"
       >
         <div id="publicMap" class="w-full map-fullscreen z-10 flex-1"></div>
 
         <div
-          class="z-[400] bg-white/95 backdrop-blur-md p-4 shadow-xl border-t lg:border-l border-slate-200 w-full lg:w-80 lg:h-full space-y-4"
+          class="z-[400] bg-white/95 backdrop-blur-md p-4 shadow-xl border-t lg:border-l border-slate-200 w-full lg:w-80 lg:h-full space-y-4 overflow-y-auto"
         >
           <div
             class="font-bold text-slate-800 border-b border-slate-100 pb-2 flex justify-between items-center"
@@ -111,15 +113,22 @@
             <div class="space-y-1.5 text-slate-600">
               <div class="flex items-center gap-2">
                 <span class="w-3.5 h-3.5 rounded bg-emerald-500"></span> Sawah
-                Irigasi
               </div>
               <div class="flex items-center gap-2">
                 <span class="w-3.5 h-3.5 rounded bg-amber-500"></span>
-                Permukiman
+                Permukiman / Pekarangan
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-3.5 h-3.5 rounded bg-lime-500"></span>
+                Kebun Campuran
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-3.5 h-3.5 rounded bg-yellow-500"></span>
+                Tegalan / Ladang
               </div>
               <div class="flex items-center gap-2">
                 <span class="w-3.5 h-3.5 rounded bg-blue-500"></span>
-                Perdagangan & Jasa
+                Danau / Perairan
               </div>
             </div>
           </div>
@@ -134,11 +143,12 @@
         </div>
       </div>
 
-      <!-- VIEW 2: DASHBOARD INTERNAL (ADMIN / SUPERUSER) -->
-      <div id="internalView" class="hidden flex-1 flex flex-col bg-slate-50">
-        <!-- Nav Bar Menu Admin -->
+      <div
+        id="internalView"
+        class="hidden flex-1 flex flex-col bg-slate-50 h-[calc(100vh-4rem)]"
+      >
         <div
-          class="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between"
+          class="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between flex-none"
         >
           <nav class="flex space-x-2 text-xs font-semibold">
             <button
@@ -166,16 +176,18 @@
           </nav>
         </div>
 
-        <div class="flex-1 relative">
-          <!-- TAB 1: PETA & DIGITASI ADMIN -->
+        <div class="flex-1 relative min-h-0">
           <div
             id="tabContent-mapTab"
-            class="tab-content absolute inset-0 flex flex-col lg:flex-row"
+            class="tab-content absolute inset-0 flex flex-col lg:flex-row h-full"
           >
-            <div id="internalMap" class="flex-1 h-full z-10"></div>
+            <div
+              id="internalMap"
+              class="flex-1 h-full min-h-[400px] z-10"
+            ></div>
 
             <div
-              class="w-full lg:w-80 bg-white border-l border-slate-200 p-4 space-y-4 overflow-y-auto"
+              class="w-full lg:w-80 bg-white border-l border-slate-200 p-4 space-y-4 overflow-y-auto flex-none"
             >
               <h3
                 class="font-bold text-xs text-slate-800 uppercase tracking-wide"
@@ -211,8 +223,8 @@
                 id="spatialMeasureResult"
                 class="bg-indigo-50 border border-indigo-100 p-3 rounded-xl text-xs text-indigo-900 leading-relaxed"
               >
-                Pilih ikon <b>Polygon (Segi Lima)</b> di toolbar peta sebelah
-                kiri untuk mulai digitasi persil.
+                Gunakan toolbar <b>Geoman</b> di sebelah kiri peta untuk
+                menggambar persil baru, mengedit simpul, atau memotong poligon.
               </div>
 
               <div class="border-t border-slate-100 pt-3">
@@ -224,7 +236,8 @@
                   Digitasi (.geojson)
                 </button>
                 <p class="text-[10px] text-slate-400 mt-1 text-center">
-                  Mengunduh seluruh bidang/poligon draf yang digambar di peta.
+                  Mengunduh seluruh bidang persil dan poligon draf hasil
+                  digitasi.
                 </p>
               </div>
             </div>
@@ -232,7 +245,7 @@
 
           <div
             id="tabContent-importTab"
-            class="tab-content hidden p-6 max-w-3xl mx-auto space-y-4"
+            class="tab-content hidden p-6 max-w-3xl mx-auto space-y-4 overflow-y-auto h-full"
           >
             <div
               class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4"
@@ -288,7 +301,7 @@
 
           <div
             id="tabContent-searchTab"
-            class="tab-content hidden p-6 max-w-5xl mx-auto space-y-4"
+            class="tab-content hidden p-6 max-w-5xl mx-auto space-y-4 overflow-y-auto h-full"
           >
             <div
               class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex gap-4"
@@ -308,8 +321,10 @@
                 class="text-xs p-2 rounded-lg border"
               >
                 <option value="ALL">Semua Penggunaan Lahan</option>
-                <option value="Sawah Irigasi">Sawah Irigasi</option>
-                <option value="Permukiman">Permukiman</option>
+                <option value="Sawah Irigasi">Sawah / Irigasi</option>
+                <option value="Permukiman">Permukiman / Pekarangan</option>
+                <option value="Kebun">Kebun Campuran</option>
+                <option value="Tegalan">Tegalan / Ladang</option>
               </select>
             </div>
             <div class="bg-white border rounded-xl overflow-hidden">

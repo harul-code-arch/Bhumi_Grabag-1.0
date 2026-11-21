@@ -29,7 +29,17 @@ function handleLogin(e) {
     document.getElementById("publicView").classList.add("hidden");
     document.getElementById("internalView").classList.remove("hidden");
 
+    if (typeof initInternalMap === "function") {
+      initInternalMap();
+    }
+
     switchTab("mapTab");
+
+    setTimeout(() => {
+      if (typeof internalMap !== "undefined" && internalMap) {
+        internalMap.invalidateSize();
+      }
+    }, 200);
   } else {
     document.getElementById("loginError").classList.remove("hidden");
   }
@@ -44,6 +54,8 @@ function handleLogout() {
   document.getElementById("internalView").classList.add("hidden");
 
   setTimeout(() => {
-    if (publicMap) publicMap.invalidateSize();
+    if (typeof publicMap !== "undefined" && publicMap) {
+      publicMap.invalidateSize();
+    }
   }, 150);
 }

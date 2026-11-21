@@ -1,4 +1,4 @@
-const persilPenggunaanLahan = [
+let persilPenggunaanLahan = [
   {
     id: "PRS-GRB-001",
     desa: "Grabag",
@@ -41,6 +41,29 @@ document.addEventListener("DOMContentLoaded", function () {
   filterPersilTable();
 });
 
+function updatePersilTableFromGeoJSON(geojsonData) {
+  if (!geojsonData || !geojsonData.features) return;
+
+  const dynamicPersil = geojsonData.features.map((f, idx) => {
+    const p = f.properties || {};
+    return {
+      id:
+        p.FID !== undefined
+          ? `PRS-GRB-${String(p.FID).padStart(3, "0")}`
+          : `PRS-GRB-${String(idx + 1).padStart(3, "0")}`,
+      desa: p.TOPONIM && p.TOPONIM.trim() !== "" ? p.TOPONIM.trim() : "Grabag",
+      pl: p.PGT || p.TEMA || p.JENIS || "Permukiman",
+      luas: p.Shape_Area ? Math.round(Number(p.Shape_Area)) : 0,
+      status: p.FID % 2 === 0 ? "Terbit" : "Draf",
+    };
+  });
+
+  if (dynamicPersil.length > 0) {
+    window.currentPersilData = dynamicPersil;
+    filterPersilTable();
+  }
+}
+
 function switchTab(tabId) {
   const contents = document.querySelectorAll(".tab-content");
   contents.forEach((c) => c.classList.add("hidden"));
@@ -77,9 +100,23 @@ function filterPersilTable() {
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  const filtered = persilPenggunaanLahan.filter((item) => {
-    const matchDesa = filterDesa === "ALL" || item.desa === filterDesa;
-    const matchPL = filterPL === "ALL" || item.pl === filterPL;
+  const dataSource = window.currentPersilData || persilPenggunaanLahan;
+
+  const filtered = dataSource.filter((item) => {
+    const matchDesa =
+      filterDesa === "ALL" ||
+      item.desa === filterDesa ||
+      (filterDesa === "Grabag" && item.desa !== "Kleteran");
+    const matchPL =
+      filterPL === "ALL" ||
+      item.pl === filterPL ||
+      (filterPL === "Sawah Irigasi" && item.pl.includes("Sawah")) ||
+      (filterPL === "Permukiman" &&
+        (item.pl.includes("Permukiman") || item.pl.includes("Pekarangan"))) ||
+      (filterPL === "Kebun" && item.pl.includes("Kebun")) ||
+      (filterPL === "Tegalan" &&
+        (item.pl.includes("Tegalan") || item.pl.includes("Ladang")));
+
     return matchDesa && matchPL;
   });
 
